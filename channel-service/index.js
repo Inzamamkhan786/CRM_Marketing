@@ -12,7 +12,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'channel-service', timestamp: new Date() });
 });
 
+app.get('/', (req, res) => {
+  res.send('Channel Service Running');
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`📡 Channel Service running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`📡 Channel Service running on port ${PORT}`);
 });
