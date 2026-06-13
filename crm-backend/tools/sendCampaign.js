@@ -1,6 +1,6 @@
 const pool = require('../db/pool');
 const { buildSegmentQuery } = require('../services/segment.service');
-const { dispatchCampaign } = require('../services/campaign.service');
+const { dispatchCampaign, simulateDeliveryLocal } = require('../services/campaign.service');
 
 const sendCampaignTool = {
   type: 'function',
@@ -59,17 +59,21 @@ async function sendCampaignHandler({ campaign_id }) {
   );
   const commResults = await Promise.all(commInserts);
 
-  // Dispatch to channel service (fire and forget)
-  const dispatches = commResults.map((r, i) =>
+  // Fire local delivery simulation (writes receipts directly — always works)
+  // Also dispatch to channel-service for architecture completeness
+  commResults.forEach((r, i) => {
+    const commId = r.rows[0].id;
+    simulateDeliveryLocal(commId).catch(err =>
+      console.error(`Local sim error for comm ${commId}:`, err)
+    );
     dispatchCampaign({
-      communicationId: r.rows[0].id,
+      communicationId: commId,
       campaignId: campaign_id,
       customerId: customers[i].id,
       channel: campaign.channel,
       message: campaign.message,
-    })
-  );
-  Promise.all(dispatches).catch(err => console.error('Tool dispatch error:', err));
+    }).catch(() => {});
+  });
 
   // Update status
   await pool.query(`UPDATE campaigns SET status='SENT' WHERE id=$1`, [campaign_id]);

@@ -42,6 +42,8 @@ export const getCampaignById = (id)     => api.get(`/campaigns/${id}`);
 export const createCampaign  = (data)   => api.post('/campaigns', data);
 // Triggers the actual sending of messages to the targeted segment
 export const sendCampaign    = (id)     => api.post(`/campaigns/${id}/send`);
+// Permanently deletes a campaign and all its communications/receipts
+export const deleteCampaign  = (id)     => api.delete(`/campaigns/${id}`);
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 // Fetches high-level metrics (total revenue, total customers, etc.) for the Dashboard

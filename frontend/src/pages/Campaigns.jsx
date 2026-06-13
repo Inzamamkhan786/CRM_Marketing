@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getCampaigns, createCampaign, sendCampaign, getSegments } from '../services/api';
-import { Plus, Send, Megaphone, X, Check, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { getCampaigns, createCampaign, sendCampaign, getSegments, deleteCampaign } from '../services/api';
+import { Plus, Send, Megaphone, X, Check, Clock, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 
 const CHANNELS = ['Email', 'WhatsApp', 'SMS', 'RCS'];
 
@@ -123,6 +123,7 @@ export default function Campaigns() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [sending, setSending] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -142,6 +143,19 @@ export default function Campaigns() {
       alert('Failed: ' + (err.response?.data?.error || err.message));
     } finally {
       setSending(null);
+    }
+  };
+
+  const handleDelete = async (campaign) => {
+    if (!confirm(`🗑️ Permanently delete "${campaign.name}"?\nThis will also delete all communications and analytics data.`)) return;
+    setDeleting(campaign.id);
+    try {
+      await deleteCampaign(campaign.id);
+      load();
+    } catch (err) {
+      alert('Failed to delete: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -215,6 +229,26 @@ export default function Campaigns() {
                     {sending === c.id ? 'Sending...' : 'Send Campaign'}
                   </button>
                 )}
+
+                {/* Delete button — always visible */}
+                <button
+                  onClick={() => handleDelete(c)}
+                  disabled={deleting === c.id}
+                  title="Delete campaign"
+                  style={{
+                    width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    cursor: deleting === c.id ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                    opacity: deleting === c.id ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (deleting !== c.id) { e.currentTarget.style.background = 'rgba(239,68,68,0.25)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.6)'; }}}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                >
+                  <Trash2 size={14} color="#ef4444" />
+                </button>
               </div>
             </div>
           ))}
