@@ -91,7 +91,10 @@ export default function Orders() {
     getOrders().then(r => setOrders(r.data)).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
+
 
   const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.amount), 0);
   const avgOrder = orders.length ? totalRevenue / orders.length : 0;
@@ -117,9 +120,9 @@ export default function Orders() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Total Orders',   value: orders.length.toLocaleString(),   icon: ShoppingCart, color: '#ffffff' },
-          { label: 'Total Revenue',  value: fmtCurrency(totalRevenue),         icon: IndianRupee,  color: '#e4e4e7' },
-          { label: 'Average Order',  value: fmtCurrency(avgOrder),             icon: IndianRupee,  color: '#d4d4d8' },
+          { label: 'Total Orders', value: orders.length.toLocaleString(), icon: ShoppingCart, color: '#ffffff' },
+          { label: 'Total Revenue', value: fmtCurrency(totalRevenue), icon: IndianRupee, color: '#e4e4e7' },
+          { label: 'Average Order', value: fmtCurrency(avgOrder), icon: IndianRupee, color: '#d4d4d8' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

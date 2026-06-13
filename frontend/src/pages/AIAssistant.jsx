@@ -143,15 +143,7 @@ export default function AIAssistant() {
               Powered by OpenAI Function Calling
             </p>
           </div>
-          <span style={{
-            marginLeft: 'auto',
-            background: 'rgba(16,185,129,0.15)',
-            color: '#10b981',
-            fontSize: 11, fontWeight: 700,
-            padding: '3px 10px', borderRadius: 999,
-          }}>
-            ● LIVE
-          </span>
+
         </div>
       </div>
 

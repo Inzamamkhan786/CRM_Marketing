@@ -47,10 +47,10 @@ function CustomerModal({ customer, onClose, onSave }) {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
-            { key: 'name',  label: 'Full Name *',     placeholder: 'Aarav Sharma' },
-            { key: 'email', label: 'Email Address *',  placeholder: 'aarav@example.com', type: 'email' },
-            { key: 'phone', label: 'Phone Number',     placeholder: '+91 98765 43210' },
-            { key: 'city',  label: 'City',             placeholder: 'Mumbai' },
+            { key: 'name', label: 'Full Name *', placeholder: 'Aarav Sharma' },
+            { key: 'email', label: 'Email Address *', placeholder: 'aarav@example.com', type: 'email' },
+            { key: 'phone', label: 'Phone Number', placeholder: '+91 98765 43210' },
+            { key: 'city', label: 'City', placeholder: 'Mumbai' },
           ].map(({ key, label, placeholder, type }) => (
             <div key={key}>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 500 }}>

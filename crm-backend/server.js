@@ -13,17 +13,14 @@ app.use(cors());
 // express.json() automatically parses incoming JSON data in the request body
 app.use(express.json());
 
-// ---------------------------------------------------------
-// Route Handlers
-// ---------------------------------------------------------
-// Each of these lines maps a URL prefix to a specific file containing those routes
-app.use('/customers',  require('./routes/customer.routes'));
-app.use('/orders',     require('./routes/order.routes'));
-app.use('/segments',   require('./routes/segment.routes'));
-app.use('/campaigns',  require('./routes/campaign.routes'));
-app.use('/analytics',  require('./routes/analytics.routes'));
-app.use('/receipts',   require('./routes/receipt.routes')); // Receives delivery updates from the Channel Service
-app.use('/ai',         require('./routes/ai.routes'));
+
+app.use('/customers', require('./routes/customer.routes'));
+app.use('/orders', require('./routes/order.routes'));
+app.use('/segments', require('./routes/segment.routes'));
+app.use('/campaigns', require('./routes/campaign.routes'));
+app.use('/analytics', require('./routes/analytics.routes'));
+app.use('/receipts', require('./routes/receipt.routes')); // Receives delivery updates from the Channel Service
+app.use('/ai', require('./routes/ai.routes'));
 
 // Simple health check endpoint to verify the server is running
 app.get('/health', (req, res) => {

@@ -3,10 +3,10 @@ import { getSegments, createSegment, deleteSegment, previewRules } from '../serv
 import { Plus, Trash2, Users, Eye, X, Check, ChevronDown } from 'lucide-react';
 
 const FIELD_OPTIONS = [
-  { value: 'total_spend',      label: 'Total Spend (₹)' },
-  { value: 'days_inactive',    label: 'Days Inactive' },
-  { value: 'order_count',      label: 'Order Count' },
-  { value: 'city',             label: 'City' },
+  { value: 'total_spend', label: 'Total Spend (₹)' },
+  { value: 'days_inactive', label: 'Days Inactive' },
+  { value: 'order_count', label: 'Order Count' },
+  { value: 'city', label: 'City' },
   { value: 'days_since_signup', label: 'Days Since Signup' },
 ];
 
@@ -147,7 +147,7 @@ function CreateSegmentModal({ onClose, onSave }) {
   const handleSave = async (e) => {
     e.preventDefault(); // Prevent page reload on form submit
     if (!name.trim()) return alert('Please enter a segment name');
-    
+
     setSaving(true);
     try {
       await createSegment({ name, rules }); // API call to save segment
