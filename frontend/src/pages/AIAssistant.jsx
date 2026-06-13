@@ -66,6 +66,7 @@ export default function AIAssistant() {
       content: "Hi! I'm your AI marketing assistant. I can help you:\n• Find the right customer segments\n• Generate campaign messages\n• Create and send campaigns\n• Analyze campaign performance\n\nWhat would you like to do today?",
     }
   ]);
+  const [contextHistory, setContextHistory] = useState([]); // Full OpenAI message history (with tool results) for AI memory
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -88,11 +89,17 @@ export default function AIAssistant() {
     setMessages(newMessages);
     setLoading(true);
 
-    // Build conversation for API (only role + content)
-    const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+    // Use contextHistory if available — it contains full tool call results (segment_id, campaign_id, etc.)
+    // so the AI remembers what it created in previous turns.
+    // Fall back to simple role+content for the very first message.
+    const apiMessages = contextHistory.length > 0
+      ? [...contextHistory, { role: 'user', content }]
+      : [{ role: 'user', content }];
 
     try {
       const r = await aiChat(apiMessages);
+      // Store the full internal messages (returned by backend) for next turn's memory
+      if (r.data.messages) setContextHistory(r.data.messages);
       setMessages(prev => [
         ...prev,
         {

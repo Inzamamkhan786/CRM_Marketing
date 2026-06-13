@@ -18,18 +18,28 @@ const CRM_BACKEND_URL = process.env.CRM_BACKEND_URL || 'http://localhost:4000';
 
 /**
  * Sends a delivery event back to the CRM receipt endpoint.
+ * Retries up to 3 times with backoff — needed because Render free-tier
+ * cold-starts can take 50+ seconds (old 5s timeout caused silent failures).
  */
-async function sendCallback({ communicationId, campaignId, customerId, eventType }) {
-  try {
-    await axios.post(`${CRM_BACKEND_URL}/receipts`, {
-      communicationId,
-      campaignId,
-      customerId,
-      eventType,
-    }, { timeout: 5000 });
-    console.log(`📬 Callback sent: comm=${communicationId} event=${eventType}`);
-  } catch (err) {
-    console.error(`❌ Callback failed for comm=${communicationId} event=${eventType}:`, err.message);
+async function sendCallback({ communicationId, campaignId, customerId, eventType }, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await axios.post(`${CRM_BACKEND_URL}/receipts`, {
+        communicationId,
+        campaignId,
+        customerId,
+        eventType,
+      }, { timeout: 30000 }); // 30s timeout handles cold-start wakeup
+      console.log(`📬 Callback sent: comm=${communicationId} event=${eventType}`);
+      return; // success
+    } catch (err) {
+      console.warn(`⚠️  Callback attempt ${attempt}/${retries} failed for comm=${communicationId} event=${eventType}: ${err.message}`);
+      if (attempt < retries) {
+        await delay(attempt * 2000); // backoff: 2s, 4s
+      } else {
+        console.error(`❌ All ${retries} callback attempts failed for comm=${communicationId} event=${eventType}`);
+      }
+    }
   }
 }
 

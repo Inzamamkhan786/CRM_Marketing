@@ -9,7 +9,7 @@ const createSegmentTool = {
   function: {
     name: 'createSegment',
     description:
-      'Creates a customer segment by finding matching customers based on behavior rules like spending, inactivity days, city, or order count. Returns the audience size and saves the segment.',
+      'Creates OR updates a customer segment based on behavior rules (spend, inactivity, city, order count). If a segment with the same name already exists, it will be UPDATED — not duplicated. Returns audience size and segment ID.',
     parameters: {
       type: 'object',
       properties: {
@@ -58,25 +58,45 @@ const createSegmentTool = {
 };
 
 /**
- * Tool handler — executes the tool and returns a result object
+ * Tool handler — UPSERT: updates existing segment if name matches, otherwise inserts new.
+ * This prevents duplicate segments when the user asks to edit rules.
  */
 async function createSegmentHandler({ name, rules }) {
   const { sql, params } = buildSegmentQuery(rules);
 
-  // Get matching customers
+  // Count matching customers for the new rule set
   const customers = await pool.query(sql, params);
   const audience_size = customers.rows.length;
 
-  // Save segment to DB
-  const result = await pool.query(
-    `INSERT INTO segments (name, rules, audience_size) VALUES ($1, $2, $3) RETURNING *`,
-    [name, JSON.stringify(rules), audience_size]
+  // Check if a segment with this exact name already exists
+  const existing = await pool.query(
+    'SELECT id FROM segments WHERE name = $1',
+    [name]
   );
+
+  let result;
+  let wasUpdated = false;
+
+  if (existing.rows.length > 0) {
+    // UPDATE existing segment — prevents duplicates when user edits rules
+    result = await pool.query(
+      `UPDATE segments SET rules = $1, audience_size = $2 WHERE name = $3 RETURNING *`,
+      [JSON.stringify(rules), audience_size, name]
+    );
+    wasUpdated = true;
+  } else {
+    // INSERT brand-new segment
+    result = await pool.query(
+      `INSERT INTO segments (name, rules, audience_size) VALUES ($1, $2, $3) RETURNING *`,
+      [name, JSON.stringify(rules), audience_size]
+    );
+  }
 
   return {
     segment_id: result.rows[0].id,
     name,
     audience_size,
+    action: wasUpdated ? 'updated existing segment' : 'created new segment',
     sample_customers: customers.rows.slice(0, 3).map(c => ({ id: c.id, name: c.name, city: c.city })),
   };
 }

@@ -4,13 +4,16 @@
  * Runs a multi-turn loop: sends messages + tool definitions to OpenAI,
  * executes any tool calls, and repeats until the model gives a final text response.
  *
- * To enable: add OPENAI_API_KEY to your .env file
+ * Returns the full internal messages array so the frontend can resend it
+ * on the next turn — giving the AI persistent memory of tool results (IDs, etc.)
  */
 
 const OpenAI = require('openai');
 
 // ── Tool imports ─────────────────────────────────────────────────────────────
 const { createSegmentTool,          createSegmentHandler          } = require('../tools/createSegment');
+const { listSegmentsTool,           listSegmentsHandler           } = require('../tools/listSegments');
+const { listCampaignsTool,          listCampaignsHandler          } = require('../tools/listCampaigns');
 const { generateCampaignMessageTool, generateCampaignMessageHandler } = require('../tools/generateCampaignMessage');
 const { createCampaignTool,         createCampaignHandler         } = require('../tools/createCampaign');
 const { sendCampaignTool,           sendCampaignHandler           } = require('../tools/sendCampaign');
@@ -34,6 +37,8 @@ function getOpenAIClient() {
 
 // ── Tool registry ─────────────────────────────────────────────────────────────
 const TOOLS = [
+  listSegmentsTool,
+  listCampaignsTool,
   createSegmentTool,
   generateCampaignMessageTool,
   createCampaignTool,
@@ -42,6 +47,8 @@ const TOOLS = [
 ];
 
 const TOOL_HANDLERS = {
+  listSegments:            listSegmentsHandler,
+  listCampaigns:           listCampaignsHandler,
   createSegment:           createSegmentHandler,
   generateCampaignMessage: generateCampaignMessageHandler,
   createCampaign:          createCampaignHandler,
@@ -58,20 +65,30 @@ You help marketers:
 - Send campaigns to audiences
 - Analyze campaign performance
 
-You have access to tools to perform these actions directly.
+You have access to these tools: listSegments, listCampaigns, createSegment, generateCampaignMessage, createCampaign, sendCampaign, getAnalytics.
 
-Important rules:
-1. Always use createSegment first to find the audience before creating a campaign.
-2. Always show the user the segment size and suggested message BEFORE sending. Ask for confirmation.
-3. Only call sendCampaign after the user confirms with "yes", "send it", "go ahead", or similar.
-4. Be concise but friendly. Present numbers clearly.
-5. If the user asks about performance, use getAnalytics.
-6. When creating a message, make it personal, warm, and action-oriented.`;
+CRITICAL RULES — follow these exactly:
+
+1. AVOID DUPLICATE SEGMENTS: Before creating a segment, ALWAYS call listSegments first to check if one with that name already exists. If the user wants to EDIT a segment's rules, call createSegment with the EXACT SAME NAME — it will UPDATE the existing one, not create a duplicate.
+
+2. SEGMENT FIRST: Always get a segment_id (from listSegments or createSegment) before creating a campaign.
+
+3. REMEMBER IDs: When a tool returns a segment_id or campaign_id, REMEMBER IT for later calls in this conversation. Never ask the user for IDs — you already have them from tool results.
+
+4. CONFIRMATION BEFORE SEND: Always show the audience size and draft message BEFORE sending. Only call sendCampaign after the user explicitly confirms with "yes", "send it", "go ahead", or similar.
+
+5. ANALYTICS LOOKUP: When asked about analytics, first call listCampaigns to find the correct campaign_id by name, then call getAnalytics with that ID.
+
+6. TONE: Be concise but friendly. Present numbers clearly. Don't ask unnecessary follow-up questions if you already have the information.`;
 
 // ── Main agent loop ────────────────────────────────────────────────────────────
 /**
  * @param {Array<{role: string, content: string}>} userMessages
- * @returns {Promise<{reply: string, toolsUsed: string[]}>}
+ *   The full conversation history from the frontend — includes prior tool call
+ *   messages if the frontend is resending them for memory continuity.
+ * @returns {Promise<{reply: string, toolsUsed: string[], messages: Array}>}
+ *   Returns reply text, tools used, AND the full internal messages array
+ *   (minus system prompt) so the frontend can resend it next turn for memory.
  */
 async function runAIAgent(userMessages) {
   const client = getOpenAIClient();
@@ -97,7 +114,13 @@ async function runAIAgent(userMessages) {
 
     // No more tool calls — return the final text response
     if (!message.tool_calls || message.tool_calls.length === 0) {
-      return { reply: message.content, toolsUsed };
+      return {
+        reply: message.content,
+        toolsUsed,
+        // Return full messages (excluding system prompt) so frontend can resend
+        // them next turn, giving the AI memory of all tool results and IDs.
+        messages: messages.slice(1),
+      };
     }
 
     // Execute each tool call
@@ -133,6 +156,7 @@ async function runAIAgent(userMessages) {
   return {
     reply: 'I reached the maximum number of steps. Please try a simpler request.',
     toolsUsed,
+    messages: messages.slice(1),
   };
 }
 
