@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// Create a configured instance of axios for making HTTP requests to our backend
-// The baseURL '/api' tells it to prefix all requests with '/api' (which is proxied to localhost:4000 in dev)
+// In production (Vercel), VITE_API_URL points to the Render backend.
+// In local dev, it falls back to '/api' which Vite proxies to localhost:4000.
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000, // Abort the request if it takes longer than 30 seconds
 });
 
