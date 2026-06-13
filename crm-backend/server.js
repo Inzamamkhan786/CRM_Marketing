@@ -27,8 +27,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'crm-backend', timestamp: new Date() });
 });
 
+app.get('/', (req, res) => {
+  res.send('CRM Backend Running');
+});
+
 // Start the server and listen for incoming requests
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 CRM Backend running on http://localhost:${PORT}`);
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 CRM Backend running on port ${PORT}`);
 });
