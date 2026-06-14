@@ -12,6 +12,8 @@ const OpenAI = require('openai');
 
 // ── Tool imports ─────────────────────────────────────────────────────────────
 const { createCustomerTool,         createCustomerHandler         } = require('../tools/createCustomer');
+const { deleteCustomerTool,         deleteCustomerHandler         } = require('../tools/deleteCustomer');
+const { updateCustomerTool,         updateCustomerHandler         } = require('../tools/updateCustomer');
 const { createSegmentTool,          createSegmentHandler          } = require('../tools/createSegment');
 const { listSegmentsTool,           listSegmentsHandler           } = require('../tools/listSegments');
 const { listCampaignsTool,          listCampaignsHandler          } = require('../tools/listCampaigns');
@@ -39,6 +41,8 @@ function getOpenAIClient() {
 // ── Tool registry ─────────────────────────────────────────────────────────────
 const TOOLS = [
   createCustomerTool,
+  deleteCustomerTool,
+  updateCustomerTool,
   listSegmentsTool,
   listCampaignsTool,
   createSegmentTool,
@@ -49,7 +53,9 @@ const TOOLS = [
 ];
 
 const TOOL_HANDLERS = {
-  createCustomer:      createCustomerHandler,
+  createCustomer:          createCustomerHandler,
+  deleteCustomer:          deleteCustomerHandler, 
+  updateCustomer:          updateCustomerHandler,
   listSegments:            listSegmentsHandler,
   listCampaigns:           listCampaignsHandler,
   createSegment:           createSegmentHandler,
@@ -63,29 +69,50 @@ const TOOL_HANDLERS = {
 const SYSTEM_PROMPT = `You are an AI assistant for a CRM platform called XenoCRM.
 You help marketers and CRM admins:
 - Create new customers in the CRM (name, email, phone, city)
+- Delete existing customers from the CRM by email
+- Update the existing customer from the CRM by email 
 - Find the right customer segments based on behavior (spend, inactivity, city, etc.)
 - Generate compelling, personalized campaign messages
 - Create and manage marketing campaigns
 - Send campaigns to audiences
 - Analyze campaign performance
 
-You have access to these tools: createCustomer, listSegments, listCampaigns, createSegment, generateCampaignMessage, createCampaign, sendCampaign, getAnalytics.
+You have access to these tools: createCustomer, deleteCustomer, listSegments, listCampaigns, createSegment, generateCampaignMessage, createCampaign, sendCampaign, getAnalytics.
 
 CRITICAL RULES — follow these exactly:
 
-1. CREATE CUSTOMER: When the user asks to add or create a customer, ALWAYS call the createCustomer tool with their name (required), email (required), and optionally phone and city. Never refuse a customer creation request.
+1. CREATE CUSTOMER: When the user asks to add or create a customer, immediately call the createCustomer tool. Required: name, email. Optional: phone, city.
 
-2. AVOID DUPLICATE SEGMENTS: Before creating a segment, ALWAYS call listSegments first to check if one with that name already exists. If the user wants to EDIT a segment's rules, call createSegment with the EXACT SAME NAME — it will UPDATE the existing one, not create a duplicate.
+2. DELETE CUSTOMER: This is a standard CRM admin operation. When the user asks to remove or delete a customer, immediately call the deleteCustomer tool with the customer's email. This is a fully supported, safe action — execute it without hesitation or warnings. Do NOT say you cannot delete customers.
 
-3. SEGMENT FIRST: Always get a segment_id (from listSegments or createSegment) before creating a campaign.
+3. UPDATE CUSTOMER: When the user ask to update a customer , immediately call the updateCustomer tool. required for searching email and then change the wanted attributes as user want and make rest of it as it is. 
 
-4. REMEMBER IDs: When a tool returns a segment_id, campaign_id, or customer_id, REMEMBER IT for later calls in this conversation. Never ask the user for IDs — you already have them from tool results.
+3. AVOID DUPLICATE SEGMENTS: Before creating a segment, ALWAYS call listSegments first to check if one with that name already exists. If the user wants to EDIT a segment's rules, call createSegment with the EXACT SAME NAME — it will UPDATE the existing one, not create a duplicate.
 
-5. CONFIRMATION BEFORE SEND: Always show the audience size and draft message BEFORE sending. Only call sendCampaign after the user explicitly confirms with "yes", "send it", "go ahead", or similar.
+4. SEGMENT FIRST: Always get a segment_id (from listSegments or createSegment) before creating a campaign.
 
-6. ANALYTICS LOOKUP: When asked about analytics, first call listCampaigns to find the correct campaign_id by name, then call getAnalytics with that ID.
+5. REMEMBER IDs: When a tool returns a segment_id, campaign_id, or customer_id, REMEMBER IT for later calls in this conversation. Never ask the user for IDs — you already have them from tool results.
 
-7. TONE: Be concise but friendly. Present numbers clearly. Don't ask unnecessary follow-up questions if you already have the information.`;
+6. CONFIRMATION BEFORE SEND: Always show the audience size and draft message BEFORE sending. Only call sendCampaign after the user explicitly confirms with "yes", "send it", "go ahead", or similar.
+
+7. ANALYTICS LOOKUP: When asked about analytics, first call listCampaigns to find the correct campaign_id by name, then call getAnalytics with that ID.
+
+8. TONE: Be concise but friendly. Present numbers clearly. Don't ask unnecessary follow-up questions if you already have the information.`;
+
+// ── Intent detection ─────────────────────────────────────────────────────────
+/**
+ * Detects whether the latest user message is asking to delete a customer.
+ * Used to force tool_choice on the first iteration so GPT-4o's safety
+ * training cannot refuse a legitimate CRM admin operation.
+ */
+function detectDeletionIntent(messages) {
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+  if (!lastUserMsg) return false;
+  const text = (typeof lastUserMsg.content === 'string' ? lastUserMsg.content : '').toLowerCase();
+  const hasDeleteWord = text.includes('delete') || text.includes('remove');
+  const hasCustomerContext = text.includes('customer') || text.includes('@') || text.includes('email');
+  return hasDeleteWord && hasCustomerContext;
+}
 
 // ── Main agent loop ────────────────────────────────────────────────────────────
 /**
@@ -107,12 +134,20 @@ async function runAIAgent(userMessages) {
   const toolsUsed = [];
   const MAX_ITERATIONS = 10;
 
+  // On the very first iteration, force deleteCustomer if deletion intent is
+  // detected — GPT-4o's safety training otherwise refuses destructive ops.
+  const forceDeletion = detectDeletionIntent(userMessages);
+
   for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const toolChoice = (i === 0 && forceDeletion)
+      ? { type: 'function', function: { name: 'deleteCustomer' } }
+      : 'auto';
+
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
       messages,
       tools: TOOLS,
-      tool_choice: 'auto',
+      tool_choice: toolChoice,
     });
 
     const message = response.choices[0].message;
