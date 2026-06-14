@@ -11,6 +11,7 @@
 const OpenAI = require('openai');
 
 // ── Tool imports ─────────────────────────────────────────────────────────────
+const { createCustomerTool,         createCustomerHandler         } = require('../tools/createCustomer');
 const { createSegmentTool,          createSegmentHandler          } = require('../tools/createSegment');
 const { listSegmentsTool,           listSegmentsHandler           } = require('../tools/listSegments');
 const { listCampaignsTool,          listCampaignsHandler          } = require('../tools/listCampaigns');
@@ -37,6 +38,7 @@ function getOpenAIClient() {
 
 // ── Tool registry ─────────────────────────────────────────────────────────────
 const TOOLS = [
+  createCustomerTool,
   listSegmentsTool,
   listCampaignsTool,
   createSegmentTool,
@@ -47,6 +49,7 @@ const TOOLS = [
 ];
 
 const TOOL_HANDLERS = {
+  createCustomer:      createCustomerHandler,
   listSegments:            listSegmentsHandler,
   listCampaigns:           listCampaignsHandler,
   createSegment:           createSegmentHandler,
@@ -57,29 +60,32 @@ const TOOL_HANDLERS = {
 };
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are an AI marketing assistant for a CRM platform called XenoCRM.
-You help marketers:
+const SYSTEM_PROMPT = `You are an AI assistant for a CRM platform called XenoCRM.
+You help marketers and CRM admins:
+- Create new customers in the CRM (name, email, phone, city)
 - Find the right customer segments based on behavior (spend, inactivity, city, etc.)
 - Generate compelling, personalized campaign messages
 - Create and manage marketing campaigns
 - Send campaigns to audiences
 - Analyze campaign performance
 
-You have access to these tools: listSegments, listCampaigns, createSegment, generateCampaignMessage, createCampaign, sendCampaign, getAnalytics.
+You have access to these tools: createCustomer, listSegments, listCampaigns, createSegment, generateCampaignMessage, createCampaign, sendCampaign, getAnalytics.
 
 CRITICAL RULES — follow these exactly:
 
-1. AVOID DUPLICATE SEGMENTS: Before creating a segment, ALWAYS call listSegments first to check if one with that name already exists. If the user wants to EDIT a segment's rules, call createSegment with the EXACT SAME NAME — it will UPDATE the existing one, not create a duplicate.
+1. CREATE CUSTOMER: When the user asks to add or create a customer, ALWAYS call the createCustomer tool with their name (required), email (required), and optionally phone and city. Never refuse a customer creation request.
 
-2. SEGMENT FIRST: Always get a segment_id (from listSegments or createSegment) before creating a campaign.
+2. AVOID DUPLICATE SEGMENTS: Before creating a segment, ALWAYS call listSegments first to check if one with that name already exists. If the user wants to EDIT a segment's rules, call createSegment with the EXACT SAME NAME — it will UPDATE the existing one, not create a duplicate.
 
-3. REMEMBER IDs: When a tool returns a segment_id or campaign_id, REMEMBER IT for later calls in this conversation. Never ask the user for IDs — you already have them from tool results.
+3. SEGMENT FIRST: Always get a segment_id (from listSegments or createSegment) before creating a campaign.
 
-4. CONFIRMATION BEFORE SEND: Always show the audience size and draft message BEFORE sending. Only call sendCampaign after the user explicitly confirms with "yes", "send it", "go ahead", or similar.
+4. REMEMBER IDs: When a tool returns a segment_id, campaign_id, or customer_id, REMEMBER IT for later calls in this conversation. Never ask the user for IDs — you already have them from tool results.
 
-5. ANALYTICS LOOKUP: When asked about analytics, first call listCampaigns to find the correct campaign_id by name, then call getAnalytics with that ID.
+5. CONFIRMATION BEFORE SEND: Always show the audience size and draft message BEFORE sending. Only call sendCampaign after the user explicitly confirms with "yes", "send it", "go ahead", or similar.
 
-6. TONE: Be concise but friendly. Present numbers clearly. Don't ask unnecessary follow-up questions if you already have the information.`;
+6. ANALYTICS LOOKUP: When asked about analytics, first call listCampaigns to find the correct campaign_id by name, then call getAnalytics with that ID.
+
+7. TONE: Be concise but friendly. Present numbers clearly. Don't ask unnecessary follow-up questions if you already have the information.`;
 
 // ── Main agent loop ────────────────────────────────────────────────────────────
 /**
