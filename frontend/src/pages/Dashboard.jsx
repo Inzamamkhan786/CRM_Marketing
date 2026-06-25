@@ -49,7 +49,7 @@ export default function Dashboard() {
           Dashboard
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', marginTop: 6, fontSize: 14 }}>
-          Welcome to XenoCRM — your AI-native marketing platform
+          Welcome to NovaCRM — your AI-native marketing platform
         </p>
       </div>
 

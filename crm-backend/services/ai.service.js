@@ -66,7 +66,7 @@ const TOOL_HANDLERS = {
 };
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are an AI assistant for a CRM platform called XenoCRM.
+const SYSTEM_PROMPT = `You are an AI assistant for a CRM platform called NovaCRM.
 You help marketers and CRM admins:
 - Create new customers in the CRM (name, email, phone, city)
 - Delete existing customers from the CRM by email

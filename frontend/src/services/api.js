@@ -7,6 +7,31 @@ const api = axios.create({
   timeout: 30000, // Abort the request if it takes longer than 30 seconds
 });
 
+// ── JWT interceptor: attach Bearer token to every request ─────────────────────
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('novacrm_token');
+  if (token) config.headers['Authorization'] = `Bearer ${token}`;
+  return config;
+});
+
+// Auto-redirect to login on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('novacrm_token');
+      localStorage.removeItem('novacrm_company');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const registerCompany = (data)     => api.post('/auth/register', data);
+export const loginCompany    = (data)     => api.post('/auth/login', data);
+export const getMyProfile    = ()         => api.get('/auth/me');
+
 // ── Customers ─────────────────────────────────────────────────────────────────
 // Fetch a list of customers, optionally passing filters like { page: 1, limit: 10 }
 export const getCustomers   = (params) => api.get('/customers', { params });

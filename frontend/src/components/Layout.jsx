@@ -1,7 +1,7 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ShoppingCart, Filter,
-  Megaphone, BarChart2, Zap
+  Megaphone, BarChart2, LogOut, Building2
 } from 'lucide-react';
 
 const CustomAIIcon = ({ size }) => <img src="/ai-icon.png" width={size} height={size} style={{ objectFit: 'contain', filter: 'invert(1)' }} alt="AI" />;
@@ -17,6 +17,19 @@ const NAV_ITEMS = [
 ];
 
 export default function Layout() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('novacrm_token');
+    localStorage.removeItem('novacrm_company');
+    navigate('/login', { replace: true });
+  };
+
+  const company = (() => {
+    try { return JSON.parse(localStorage.getItem('novacrm_company') || '{}'); }
+    catch { return {}; }
+  })();
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
       {/* Sidebar */}
@@ -44,7 +57,7 @@ export default function Layout() {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
-                XenoCRM
+                NovaCRM
               </div>
               <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 1 }}>
                 Marketing Platform
@@ -92,14 +105,39 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Footer — company info + logout */}
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-            Xeno Assignment
-          </div>
-          <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>
-            BT23CSH053
-          </div>
+          {company.company_name && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Building2 size={13} color="var(--color-text-secondary)" />
+              <div style={{ fontSize: 12, color: 'var(--color-text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {company.company_name}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: 7,
+              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
+              fontSize: 13,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,80,80,0.1)'; e.currentTarget.style.color = '#ff5050'; e.currentTarget.style.borderColor = 'rgba(255,80,80,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+          >
+            <LogOut size={14} />
+            Sign Out
+          </button>
+          <div style={{ fontSize: 10, color: '#4b5563', marginTop: 10 }}>NovaCRM v1.0 · BT23CSH053</div>
         </div>
       </aside>
 
